@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# 虚拟环境
+.venv/
+venv/
+
+# 配置与密钥
+.env
+.env.local
+
+# 运行产物
+reports/
+results/
+logs/
+*.db
+*.sqlite3
+
+# 测试与覆盖率
+.pytest_cache/
+.coverage
+coverage_html/
+htmlcov/
+
+# IDE
+.idea/
+.vscode/
