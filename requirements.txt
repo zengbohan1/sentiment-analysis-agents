@@ -4,6 +4,10 @@ uvicorn[standard]>=0.30
 sse-starlette>=2.1
 python-multipart>=0.0.9
 
+# LLM（LangChain）
+langchain-core>=0.3
+langchain-openai>=0.2
+
 # Async & SSE
 anyio>=4.4
 httpx>=0.27

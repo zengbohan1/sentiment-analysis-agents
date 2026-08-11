@@ -1,6 +1,7 @@
-"""LLM 抽象层：OpenAI 兼容协议客户端 + MockLLM 离线降级。
+"""LLM 抽象层：LangChain（ChatOpenAI）+ MockLLM 离线降级。
 
-- ChatLLM：真实模型（DeepSeek / 任意 OpenAI 兼容网关），支持 Function Calling。
+- ChatLLM：基于 langchain-openai 的 ChatOpenAI（DeepSeek / 任意 OpenAI 兼容网关），
+  通过 bind_tools 支持 Function Calling 工具调用。
 - MockLLM：无 API Key 时的确定性回复，保证离线可跑、可测试、可评测。
 - 统一 TokenUsage 统计，接入可观测模块。
 
@@ -16,7 +17,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-import httpx
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
 from ..config import Settings
 
@@ -80,26 +81,80 @@ class BaseLLM:
 
 
 class ChatLLM(BaseLLM):
-    """OpenAI 兼容协议客户端（DeepSeek 等）。"""
+    """LangChain ChatOpenAI 客户端（DeepSeek / 任意 OpenAI 兼容网关）。"""
 
     name = "chat"
 
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
-        self._client = httpx.AsyncClient(
+        from langchain_openai import ChatOpenAI
+
+        self._model = ChatOpenAI(
+            model=settings.llm_model,
+            api_key=settings.llm_api_key,
             base_url=settings.llm_base_url,
-            headers={
-                "Authorization": f"Bearer {settings.llm_api_key}",
-                "Content-Type": "application/json",
-            },
-            timeout=httpx.Timeout(120.0, connect=10.0),
+            temperature=settings.llm_temperature,
+            max_tokens=settings.llm_max_tokens,
+            timeout=120,
+            max_retries=2,
         )
 
+    # ---------- 消息转换 ----------
+
     @staticmethod
-    def _to_openai_tools(tools: list[dict[str, Any]] | None) -> list[dict[str, Any]] | None:
-        if not tools:
-            return None
-        return [{"type": "function", "function": t} for t in tools]
+    def _to_lc_messages(messages: list[LLMMessage]) -> list[Any]:
+        """LLMMessage -> langchain_core.messages（含工具调用回填消息）。"""
+        out: list[Any] = []
+        for m in messages:
+            if m.role == "system":
+                out.append(SystemMessage(content=m.content))
+            elif m.role == "assistant":
+                if m.tool_calls:
+                    out.append(
+                        AIMessage(
+                            content=m.content,
+                            tool_calls=ChatLLM._to_lc_tool_calls(m.tool_calls),
+                        )
+                    )
+                else:
+                    out.append(AIMessage(content=m.content))
+            elif m.role == "tool":
+                out.append(
+                    ToolMessage(content=m.content, tool_call_id=m.tool_call_id, name=m.name)
+                )
+            else:
+                out.append(HumanMessage(content=m.content))
+        return out
+
+    @staticmethod
+    def _to_lc_tool_calls(oai_calls: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """OpenAI 格式 tool_calls -> LangChain 格式（name/args/id）。"""
+        return [
+            {
+                "name": c["function"]["name"],
+                "args": json.loads(c["function"].get("arguments") or "{}"),
+                "id": c.get("id") or f"call_{i}",
+                "type": "tool_call",
+            }
+            for i, c in enumerate(oai_calls)
+        ]
+
+    @staticmethod
+    def _from_lc_tool_calls(lc_calls: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """LangChain 格式 tool_calls -> OpenAI 格式（Agent 层回填用）。"""
+        return [
+            {
+                "id": c.get("id") or f"call_{i}",
+                "type": "function",
+                "function": {
+                    "name": c["name"],
+                    "arguments": json.dumps(c.get("args") or {}, ensure_ascii=False),
+                },
+            }
+            for i, c in enumerate(lc_calls)
+        ]
+
+    # ---------- 调用 ----------
 
     async def complete(
         self,
@@ -108,41 +163,42 @@ class ChatLLM(BaseLLM):
         temperature: float | None = None,
         max_tokens: int | None = None,
     ) -> tuple[str, list[dict[str, Any]] | None, TokenUsage]:
-        payload: dict[str, Any] = {
-            "model": self._settings.llm_model,
-            "messages": [m.to_dict() for m in messages],
-            "temperature": temperature if temperature is not None else self._settings.llm_temperature,
-            "max_tokens": max_tokens if max_tokens is not None else self._settings.llm_max_tokens,
-            "stream": False,
-        }
-        oai_tools = self._to_openai_tools(tools)
-        if oai_tools:
-            payload["tools"] = oai_tools
-            payload["tool_choice"] = "auto"
-
         try:
-            resp = await self._client.post("/chat/completions", json=payload)
-        except httpx.HTTPError as exc:
+            model = self._model
+            if tools:
+                # 绑定 Function Calling 工具（OpenAI 函数 schema）
+                model = model.bind_tools([{"type": "function", "function": t} for t in tools])
+            kwargs: dict[str, Any] = {}
+            if temperature is not None:
+                kwargs["temperature"] = temperature
+            if max_tokens is not None:
+                kwargs["max_tokens"] = max_tokens
+            ai = await model.ainvoke(self._to_lc_messages(messages), **kwargs)
+        except Exception as exc:  # noqa: BLE001
             raise LLMError(f"LLM 请求失败: {exc}") from exc
-        if resp.status_code != 200:
-            raise LLMError(f"LLM 返回 {resp.status_code}: {resp.text[:300]}")
 
-        data = resp.json()
-        choice = data["choices"][0]
-        msg = choice["message"]
-        usage = data.get("usage", {})
+        content = ai.content
+        if isinstance(content, list):  # 内容块（多模态响应）
+            content = "".join(
+                str(c.get("text", "")) if isinstance(c, dict) else str(c) for c in content
+            )
+        tool_calls = self._from_lc_tool_calls(ai.tool_calls) if ai.tool_calls else None
+        um = ai.usage_metadata or {}
         return (
-            msg.get("content") or "",
-            msg.get("tool_calls"),
+            content or "",
+            tool_calls,
             TokenUsage(
-                prompt_tokens=usage.get("prompt_tokens", 0),
-                completion_tokens=usage.get("completion_tokens", 0),
-                total_tokens=usage.get("total_tokens", 0),
+                prompt_tokens=um.get("input_tokens", 0),
+                completion_tokens=um.get("output_tokens", 0),
+                total_tokens=um.get("total_tokens", 0),
             ),
         )
 
     async def aclose(self) -> None:
-        await self._client.aclose()
+        try:
+            await self._model.aclose()
+        except Exception:  # noqa: BLE001
+            pass
 
 
 class MockLLM(BaseLLM):
@@ -177,14 +233,16 @@ class MockLLM(BaseLLM):
 
         has_tool_results = any(m.role == "tool" for m in messages)
         if tools and not has_tool_results:
-            # 模拟模型决策：调用全部工具（每个一次）
+            # 模拟模型决策：按工具 JSON Schema 生成参数，调用全部工具（每个一次）
             tool_calls = [
                 {
                     "id": f"mock_call_{i}",
                     "type": "function",
                     "function": {
                         "name": t["name"],
-                        "arguments": json.dumps({"query": last_user[:80]}, ensure_ascii=False),
+                        "arguments": json.dumps(
+                            self._args_from_schema(t, last_user), ensure_ascii=False
+                        ),
                     },
                 }
                 for i, t in enumerate(tools)
@@ -198,6 +256,23 @@ class MockLLM(BaseLLM):
             completion_tokens=len(reply) * 2 + 60,
         )
         return reply, None, usage
+
+    @staticmethod
+    def _args_from_schema(tool: dict[str, Any], query: str) -> dict[str, Any]:
+        """按工具 JSON Schema 生成模拟参数（字符串参数填查询，其余按类型取样例值）。"""
+        props = (tool.get("parameters") or {}).get("properties") or {}
+        args: dict[str, Any] = {}
+        for pname, pspec in props.items():
+            ptype = pspec.get("type", "string")
+            if ptype == "integer":
+                args[pname] = 1
+            elif ptype == "number":
+                args[pname] = 0.0
+            elif ptype == "boolean":
+                args[pname] = True
+            else:
+                args[pname] = query[:80]
+        return args
 
     def _compose_final_reply(self, query: str) -> str:
         if not query.strip():
