@@ -6,9 +6,11 @@
 from __future__ import annotations
 
 import json
+import random
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
 
+from ..config import Settings
 from ..core.llm import BaseLLM, LLMMessage, TokenUsage
 
 
@@ -36,14 +38,23 @@ ToolFn = Callable[..., Awaitable[Any]]
 
 
 class BaseAgent:
-    """所有 Agent 的基类：统一 prompt 装配、工具执行循环、日志与用量记录。"""
+    """所有 Agent 的基类：统一 prompt 装配、工具执行循环、日志与用量记录。
+
+    健壮性：
+    - 工具调用失败自动重试（settings.tool_retries 次），重试仍失败降级为
+      错误结果回填模型（不中断任务）；
+    - settings.fault_inject_rate > 0 时按概率注入瞬时故障（仅评测用）。
+    """
 
     name: str = "base"
     role_prompt: str = "你是一个分析助手。"
 
-    def __init__(self, llm: BaseLLM) -> None:
+    def __init__(self, llm: BaseLLM, settings: Settings | None = None) -> None:
         self._llm = llm
         self._tools: dict[str, tuple[str, dict, ToolFn]] = {}
+        self._settings = settings or Settings()
+        self._tool_retries = max(0, self._settings.tool_retries)
+        self._fault_rate = min(1.0, max(0.0, self._settings.fault_inject_rate))
 
     def register_tool(self, name: str, description: str, schema: dict, fn: ToolFn) -> None:
         self._tools[name] = (description, schema, fn)
@@ -95,11 +106,13 @@ class BaseAgent:
                     fn = tc["function"]
                     name, arguments = fn["name"], fn.get("arguments", "{}")
                     ctx.log(self.name, "tool", f"调用工具 {name}")
-                    try:
-                        kwargs = json.loads(arguments) if isinstance(arguments, str) else arguments
-                        result = await self._execute_tool(name, kwargs)
-                    except Exception as exc:  # noqa: BLE001
-                        result = json.dumps({"error": str(exc)}, ensure_ascii=False)
+                    kwargs = json.loads(arguments) if isinstance(arguments, str) else arguments
+                    result, ok, last_exc = await self._execute_tool_with_retry(ctx, name, kwargs)
+                    if ok:
+                        ctx.log(self.name, "tool_ok", f"工具 {name} 调用成功")
+                    else:
+                        result = json.dumps({"error": str(last_exc)}, ensure_ascii=False)
+                        ctx.log(self.name, "tool_fail", f"工具 {name} 调用失败: {last_exc}")
                     messages.append(
                         LLMMessage(
                             role="tool",
@@ -125,3 +138,22 @@ class BaseAgent:
             raise KeyError(f"未注册的工具: {name}")
         _, _, fn = tool
         return await fn(**kwargs)
+
+    async def _execute_tool_with_retry(
+        self, ctx: AgentContext, name: str, kwargs: dict[str, Any]
+    ) -> tuple[Any, bool, Exception | None]:
+        """执行工具：故障注入 + 自动重试，返回 (结果, 是否成功, 最后的异常)。"""
+        last_exc: Exception | None = None
+        for attempt in range(self._tool_retries + 1):
+            try:
+                if self._fault_rate > 0 and random.random() < self._fault_rate:
+                    raise RuntimeError(f"注入瞬时故障（第 {attempt + 1} 次尝试）")
+                return await self._execute_tool(name, kwargs), True, None
+            except Exception as exc:  # noqa: BLE001
+                last_exc = exc
+                if attempt < self._tool_retries:
+                    ctx.log(
+                        self.name, "tool_retry",
+                        f"工具 {name} 第 {attempt + 1} 次失败，重试: {exc}",
+                    )
+        return None, False, last_exc

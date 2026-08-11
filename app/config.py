@@ -49,6 +49,16 @@ class Settings(BaseSettings):
     # ---- 评测 ----
     eval_set_path: str = "data/eval/eval_set.jsonl"
 
+    # ---- 健壮性 ----
+    # 工具调用失败自动重试次数（0=不重试）
+    tool_retries: int = 1
+    # Agent 执行失败自动重试次数（0=不重试；模拟 LLM 调用失败等瞬时故障）
+    agent_retries: int = 1
+    # 故障注入概率（0~1，仅评测/混沌测试使用；生产必须为 0）
+    fault_inject_rate: float = 0.0
+    # Agent 级故障注入概率（0~1，仅评测/混沌测试使用；生产必须为 0）
+    agent_fault_rate: float = 0.0
+
     @property
     def use_mock_llm(self) -> bool:
         return self.llm_mock or not self.llm_api_key
