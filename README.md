@@ -1,5 +1,18 @@
 # 多智能体舆情分析系统
 
+![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
+![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=flat-square&logo=langchain&logoColor=white)
+![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-D71F00?style=flat-square)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white)
+![SSE](https://img.shields.io/badge/SSE-4B8BBE?style=flat-square)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
+
+![Tool Success](https://img.shields.io/badge/Tool_Success-100%25-4C9F70?style=flat-square)
+![Concurrency](https://img.shields.io/badge/60_Tasks-100%25-4C9F70?style=flat-square)
+![Cost](https://img.shields.io/badge/Cost-0.054CNY%2Ftask-FF6F00?style=flat-square)
+
 面向舆情分析的 AI 多智能体系统：自动完成多源舆情抓取、深度分析与报告生成。
 
 > 技术栈：Python 3.11、FastAPI、LangChain（ChatOpenAI / bind_tools）、SQLAlchemy（异步）、PostgreSQL / MySQL 双数据源、Redis、SSE、Docker
