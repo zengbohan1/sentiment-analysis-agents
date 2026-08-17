@@ -1,4 +1,4 @@
-# 多智能体舆情分析系统
+# 多智能体舆情分析系统 · Multi-agent Sentiment Analysis
 
 ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
@@ -12,6 +12,8 @@
 ![Tool Success](https://img.shields.io/badge/Tool_Success-100%25-4C9F70?style=flat-square)
 ![Concurrency](https://img.shields.io/badge/60_Tasks-100%25-4C9F70?style=flat-square)
 ![Cost](https://img.shields.io/badge/Cost-0.054CNY%2Ftask-FF6F00?style=flat-square)
+
+> **Multi-agent Sentiment Analysis** — parallel Query / Media / Insight agents with a custom scheduler, SSE long-task control and report pipeline (HTML / PDF / Markdown). Built with FastAPI · LangChain · SQLAlchemy. Measured: tool success **100%** (265 calls) · **60**-task concurrency · **¥0.054**/task.
 
 面向舆情分析的 AI 多智能体系统：自动完成多源舆情抓取、深度分析与报告生成。
 
