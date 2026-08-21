@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 180" width="800" height="180">
+  <defs>
+    <linearGradient id="bg1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#1e293b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0f172a;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accent1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#38bdf8;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#818cf8;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="800" height="180" fill="url(#bg1)"/>
+  <!-- Grid pattern -->
+  <g stroke="#1e293b" stroke-width="0.5" opacity="0.5">
+    <line x1="0" y1="30" x2="800" y2="30"/>
+    <line x1="0" y1="60" x2="800" y2="60"/>
+    <line x1="0" y1="90" x2="800" y2="90"/>
+    <line x1="0" y1="120" x2="800" y2="120"/>
+    <line x1="0" y1="150" x2="800" y2="150"/>
+  </g>
+  <!-- Agent nodes -->
+  <g>
+    <rect x="40" y="60" width="90" height="40" rx="6" fill="#1e3a5f" stroke="#38bdf8" stroke-width="1"/>
+    <text x="85" y="85" fill="#38bdf8" font-family="Arial,sans-serif" font-size="12" text-anchor="middle" font-weight="bold">Query Agent</text>
+    
+    <rect x="200" y="40" width="90" height="40" rx="6" fill="#1e3a5f" stroke="#818cf8" stroke-width="1"/>
+    <text x="245" y="65" fill="#818cf8" font-family="Arial,sans-serif" font-size="12" text-anchor="middle" font-weight="bold">Media Agent</text>
+    
+    <rect x="360" y="60" width="90" height="40" rx="6" fill="#1e3a5f" stroke="#c084fc" stroke-width="1"/>
+    <text x="405" y="85" fill="#c084fc" font-family="Arial,sans-serif" font-size="12" text-anchor="middle" font-weight="bold">Insight Agent</text>
+    
+    <rect x="520" y="40" width="90" height="40" rx="6" fill="#1e3a5f" stroke="#34d399" stroke-width="1"/>
+    <text x="565" y="65" fill="#34d399" font-family="Arial,sans-serif" font-size="12" text-anchor="middle" font-weight="bold">ReportEngine</text>
+    
+    <rect x="680" y="60" width="90" height="40" rx="6" fill="#1e3a5f" stroke="#fbbf24" stroke-width="1"/>
+    <text x="725" y="85" fill="#fbbf24" font-family="Arial,sans-serif" font-size="12" text-anchor="middle" font-weight="bold">SSE · Redis</text>
+  </g>
+  <!-- Connection lines -->
+  <g stroke="#334155" stroke-width="1.5" fill="none">
+    <line x1="130" y1="80" x2="200" y2="60" marker-end="url(#arrow)"/>
+    <line x1="290" y1="60" x2="360" y2="60"/>
+    <line x1="450" y1="60" x2="520" y2="60"/>
+    <line x1="610" y1="60" x2="680" y2="60"/>
+  </g>
+  <!-- Title -->
+  <text x="400" y="140" fill="url(#accent1)" font-family="Arial,sans-serif" font-size="18" text-anchor="middle" font-weight="bold">Multi-Agent Sentiment Analysis System</text>
+  <text x="400" y="160" fill="#64748b" font-family="Arial,sans-serif" font-size="11" text-anchor="middle">Parallel Query / Media / Insight Agents · ForumEngine Scheduler · SSE Long-task Control</text>
+</svg>

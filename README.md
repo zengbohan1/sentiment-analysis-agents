@@ -1,5 +1,13 @@
 # 多智能体舆情分析系统 · Multi-agent Sentiment Analysis
 
+
+![Banner](docs/banner.svg)
+
+> Multi-agent sentiment analysis system with parallel Query/Media/Insight agents, custom ForumEngine scheduler, SSE long-task control and automated report pipeline.
+
+**Topics:** `ai` · `agent` · `llm` · `multi-agent` · `sentiment-analysis` · `fastapi` · `sse`
+
+
 ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
 ![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=flat-square&logo=langchain&logoColor=white)
@@ -167,3 +175,27 @@ tests/                   # pytest（16 个用例全通过）
 ## 许可
 
 MIT
+
+---
+
+## 🤝 贡献
+
+欢迎 Issue 和 PR。开发环境：
+
+```bash
+git clone https://github.com/zengbohan1/sentiment-analysis-agents
+cd sentiment-analysis-agents
+python -m venv .venv && .venv/Scripts/python -m pip install -r requirements.txt
+cp .env.example .env
+docker-compose up -d
+pytest
+```
+
+## 📜 License
+
+[MIT](LICENSE)
+
+## 🙏 致谢
+
+- LangChain / LangGraph 社区提供的 Agent 编排灵感
+- FastAPI 团队的 SSE 长连接支持
